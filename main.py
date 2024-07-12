@@ -2,6 +2,7 @@ import asyncio
 import aiohttp
 from typing import List, Dict, Tuple
 import re
+import json
 import time
 
 OLLAMA_ENDPOINT = "http://localhost:11434/api/chat"
@@ -213,6 +214,10 @@ async def main():
     for model in models:
         print(f"{model.name}: {arena.elo_history[model.name]}")
 
+    # save training data to a file
+    with open("training_data.json", "w") as f:
+        json.dump(training_data, f, indent=4)
+
     print("\nTraining data:")
     for item in training_data:
         print(f"Prompt: {item['prompt']}")
@@ -232,3 +237,4 @@ if __name__ == "__main__":
     end_time = time.perf_counter()
     execution_time = end_time - start_time
     print(f"Total execution time: {execution_time:.2f} seconds")
+
