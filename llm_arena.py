@@ -4,13 +4,24 @@ from typing import List, Dict, Tuple
 import re
 import json
 import time
+import yaml
 
-OLLAMA_ENDPOINT = "http://localhost:11434/api/chat"
+class Endpoint:
+    def __init__(self, url: str, api_key: str = None):
+        self.url = url
+        self.api_key = api_key
+
+    def get_headers(self):
+        headers = {}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
 
 class Model:
-    def __init__(self, name: str, model_id: str):
+    def __init__(self, name: str, model_id: str, endpoint: Endpoint):
         self.name = name
         self.model_id = model_id
+        self.endpoint = endpoint
         self.elo = 1000  # Initial ELO score
         self.responses = {}  # Store responses for each prompt
 
@@ -18,7 +29,8 @@ class Model:
         if prompt not in self.responses:
             print(f"Generating response for {self.name} to prompt: {prompt}")
             async with session.post(
-                url=OLLAMA_ENDPOINT,
+                url=self.endpoint.url,
+                headers=self.endpoint.get_headers(),
                 json={
                     "model": self.model_id,
                     "messages": [
@@ -28,13 +40,14 @@ class Model:
                 }
             ) as response:
                 result = await response.json()
-                self.responses[prompt] = result["message"]["content"]
+                self.responses[prompt] = result['choices'][0]['message']['content']
         return self.responses[prompt]
 
 class JudgeModel:
-    def __init__(self, name: str, model_id: str):
+    def __init__(self, name: str, model_id: str, endpoint: Endpoint):
         self.name = name
         self.model_id = model_id
+        self.endpoint = endpoint
 
     async def evaluate(self, session: aiohttp.ClientSession, prompt: str, response1: str, response2: str) -> Tuple[int, int, str]:
         evaluation_prompt = f"""You are an impartial judge evaluating the quality of responses from two AI models. Your task is to analyze and compare their responses objectively, focusing on various factors such as coherence, factual accuracy, context-awareness, and overall quality.
@@ -62,7 +75,8 @@ Score-B: [score]
         """
 
         async with session.post(
-            url=OLLAMA_ENDPOINT,
+            url=self.endpoint.url,
+            headers=self.endpoint.get_headers(),
             json={
                 "model": self.model_id,
                 "messages": [
@@ -72,7 +86,7 @@ Score-B: [score]
             }
         ) as response:
             result = await response.json()
-            evaluation = result["message"]["content"]
+            evaluation = result['choices'][0]['message']['content']
         
         parts = evaluation.split("Score-A:")
         if len(parts) != 2:
@@ -192,20 +206,42 @@ class ArenaLearning:
         return self.generate_training_data(prompts)
 
 async def main():
-    models = [
-        Model("Open hermes", "openhermes"),
-        Model("Mistral v0.3", "mistral"),
-        Model("Phi 3 medium", "phi3:14b"),
-    ]
-    judge_model = JudgeModel("JudgeModel", "llama3")
+    # Load configuration from YAML file
+    with open("arena_config.yaml", "r") as config_file:
+        config = yaml.safe_load(config_file)
+
+    default_endpoint = Endpoint(
+        url=config["default_endpoint"]["url"],
+        api_key=config["default_endpoint"].get("api_key")
+    )
+
+    # Create models from configuration
+    models = []
+    for model_config in config["models"]:
+        if "endpoint" in model_config:
+            endpoint = Endpoint(
+                url=model_config["endpoint"]["url"],
+                api_key=model_config["endpoint"].get("api_key")
+            )
+        else:
+            endpoint = default_endpoint
+        models.append(Model(model_config["name"], model_config["model_id"], endpoint))
+
+    # Create judge model from configuration
+    judge_config = config["judge_model"]
+    if "endpoint" in judge_config:
+        judge_endpoint = Endpoint(
+            url=judge_config["endpoint"]["url"],
+            api_key=judge_config["endpoint"].get("api_key")
+        )
+    else:
+        judge_endpoint = default_endpoint
+    judge_model = JudgeModel(judge_config["name"], judge_config["model_id"], judge_endpoint)
+
+    # Get prompts from configuration
+    prompts = config["prompts"]
 
     arena = ArenaLearning(models, judge_model)
-
-    prompts = [
-        "Explain the concept of quantum entanglement.",
-        "What are the main causes and effects of climate change?",
-        "Explain the importance of artificial intelligence in modern healthcare."
-    ]
 
     async with aiohttp.ClientSession() as session:
         training_data = await arena.run_arena(session, prompts)
@@ -237,4 +273,3 @@ if __name__ == "__main__":
     end_time = time.perf_counter()
     execution_time = end_time - start_time
     print(f"Total execution time: {execution_time:.2f} seconds")
-

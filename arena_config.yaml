@@ -1,0 +1,32 @@
+default_endpoint: 
+  url: "http://localhost:11434/v1/chat/completions"
+  # api_key: "your_default_api_key"  # Uncomment and set if needed
+
+judge_model:
+  name: "JudgeModel"
+  model_id: "llama3"
+  # endpoint:
+  #   url: "http://custom-judge-endpoint.com/api/chat"
+  #   api_key: "judge_model_api_key"
+
+
+models:
+  - name: "Open hermes"
+    model_id: "openhermes"
+    # endpoint:
+    #   url: "http://custom-phi3-endpoint.com/api/chat"
+    #   api_key: "phi3_api_key"
+  - name: "Mistral v0.3"
+    model_id: "mistral"
+  - name: "Phi 3 medium"
+    model_id: "phi3:14b"
+  - name: ChatGPT3.5
+    model_id: "gpt-3.5-turbo"
+    endpoint:
+      url: "https://api.openai.com/v1/chat/completions"
+      api_key: "your_openai_api_key"
+
+prompts:
+  - "Explain the concept of quantum entanglement."
+  - "What are the main causes and effects of climate change?"
+  - "Explain the importance of artificial intelligence in modern healthcare."
