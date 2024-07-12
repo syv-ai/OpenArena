@@ -24,8 +24,8 @@ LLM Arena is a Python project designed to create high-quality datasets by pittin
 
 1. Clone this repository:
    ```
-   git clone https://github.com/yourusername/llm-arena.git
-   cd llm-arena
+   git clone https://github.com/syv-ai/OpenArena.git
+   cd OpenArena
    ```
 
 2. Install the required packages:
