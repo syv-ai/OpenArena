@@ -84,7 +84,3 @@ LLM Arena is a Python project designed to create high-quality datasets by pittin
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
