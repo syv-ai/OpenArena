@@ -1,5 +1,7 @@
 # OpenArena: Competitive Dataset Generation
 
+![Llamas fighting in an arena](assets/fight.jpeg)
+
 ## Overview
 
 LLM Arena is a Python project designed to create high-quality datasets by pitting Language Models (LLMs) against each other in a competitive environment. This tool uses an ELO-based rating system to rank different LLMs based on their performance on various prompts, judged by another LLM acting as an impartial evaluator.
