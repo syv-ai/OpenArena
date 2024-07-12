@@ -4,6 +4,13 @@
 
 LLM Arena is a Python project designed to create high-quality datasets by pitting Language Models (LLMs) against each other in a competitive environment. This tool uses an ELO-based rating system to rank different LLMs based on their performance on various prompts, judged by another LLM acting as an impartial evaluator.
 
+## Future work
+- [ ] Automatically download ollama models
+- [ ] Better configuration (yaml?)
+- [ ] Hugging face datasets
+- [ ] Auto upload to hugging face
+- [ ] Database to keep track of which prompts have been done if it should fail  
+
 ## Features
 
 - Asynchronous battles between multiple LLMs
