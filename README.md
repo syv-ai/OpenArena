@@ -19,12 +19,6 @@ LLM Arena is a Python project designed to create high-quality datasets by pittin
 ## Requirements
 
 - Python 3.7+
-- aiohttp
-- asyncio
-- PyYAML
-- typing
-- re
-- time
 
 ## Installation
 
