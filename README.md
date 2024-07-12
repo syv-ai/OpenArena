@@ -40,7 +40,7 @@ LLM Arena is a Python project designed to create high-quality datasets by pittin
 
 2. Install the required packages:
    ```
-   pip install aiohttp
+   pip install -r requirements.txt
    ```
 
 3. Ensure you have access to the Ollama API endpoint (default: `http://localhost:11434/api/chat`).
