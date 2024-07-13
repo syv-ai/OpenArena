@@ -26,7 +26,10 @@ models:
       url: "https://api.openai.com/v1/chat/completions"
       api_key: "your_openai_api_key"
 
-prompts:
-  - "Explain the concept of quantum entanglement."
-  - "What are the main causes and effects of climate change?"
-  - "Explain the importance of artificial intelligence in modern healthcare."
+
+datasets:
+  - name: "skunkworksAI/reasoning-0.01"
+    description: "Reasoning dataset"
+    split: "train"
+    field: "instruction"
+    limit: 10

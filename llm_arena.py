@@ -5,6 +5,7 @@ import re
 import json
 import time
 import yaml
+from datasets import load_dataset
 
 class Endpoint:
     def __init__(self, url: str, api_key: str = None):
@@ -27,7 +28,7 @@ class Model:
 
     async def generate_response(self, session: aiohttp.ClientSession, prompt: str) -> str:
         if prompt not in self.responses:
-            print(f"Generating response for {self.name} to prompt: {prompt}")
+            print(f"Generating response for {self.name} to prompt: {prompt[:30]}...")
             async with session.post(
                 url=self.endpoint.url,
                 headers=self.endpoint.get_headers(),
@@ -40,6 +41,7 @@ class Model:
                 }
             ) as response:
                 result = await response.json()
+                print(result)
                 self.responses[prompt] = result['choices'][0]['message']['content']
         return self.responses[prompt]
 
@@ -99,7 +101,8 @@ Score-B: [score]
         scores = re.findall(score_pattern, scores_part)
         
         if len(scores) != 2:
-            raise ValueError("Unable to parse scores from the evaluation response")
+            print("Warning: Unable to extract scores from evaluation response - trying again")
+            self.evaluate(session, prompt, response1, response2)
 
         score_dict = dict(scores)
         score1 = int(score_dict.get('A', 0))
@@ -117,20 +120,21 @@ class ArenaLearning:
         self.battle_results = []
         self.elo_history = {model.name: [model.elo] for model in models}
 
-    async def generate_all_responses(self, session: aiohttp.ClientSession, prompts: List[str]) -> None:
+    async def generate_batch_responses(self, session: aiohttp.ClientSession, prompt_batch: List[str]) -> None:
         tasks = []
         for model in self.models:
-            for prompt in prompts:
+            for prompt in prompt_batch:
                 tasks.append(model.generate_response(session, prompt))
         await asyncio.gather(*tasks)
 
-    async def run_battles_for_prompt(self, session: aiohttp.ClientSession, prompt: str) -> None:
+    async def run_battles_for_batch(self, session: aiohttp.ClientSession, prompt_batch: List[str]) -> None:
         tasks = []
-        for i in range(len(self.models)):
-            for j in range(i + 1, len(self.models)):
-                print(f"Running battle for prompt: {prompt}, {self.models[i].name} vs {self.models[j].name}")
-                model1, model2 = self.models[i], self.models[j]
-                tasks.append(self.battle(session, prompt, model1, model2))
+        for prompt in prompt_batch:
+            for i in range(len(self.models)):
+                for j in range(i + 1, len(self.models)):
+                    print(f"Running battle for prompt: {prompt[:50]}..., {self.models[i].name} vs {self.models[j].name}")
+                    model1, model2 = self.models[i], self.models[j]
+                    tasks.append(self.battle(session, prompt, model1, model2))
         await asyncio.gather(*tasks)
 
     async def battle(self, session: aiohttp.ClientSession, prompt: str, model1: Model, model2: Model) -> None:
@@ -191,15 +195,20 @@ class ArenaLearning:
             })
         return training_data
 
-    async def run_arena(self, session: aiohttp.ClientSession, prompts: List[str]) -> None:
-        print("Generating responses for all models...")
-        await self.generate_all_responses(session, prompts)
+    async def run_arena(self, session: aiohttp.ClientSession, prompts: List[str], batch_size: int = 3) -> List[Dict]:
+        print("Running arena with batched processing...")
+        for i in range(0, len(prompts), batch_size):
+            prompt_batch = prompts[i:i+batch_size]
+            print(f"\nProcessing batch {i//batch_size + 1} (prompts {i+1}-{min(i+batch_size, len(prompts))})")
+            
+            print("Generating responses for current batch...")
+            await self.generate_batch_responses(session, prompt_batch)
 
-        print("Running battles...")
-        for prompt in prompts:
-            await self.run_battles_for_prompt(session, prompt)
+            print("Running battles for current batch...")
+            await self.run_battles_for_batch(session, prompt_batch)
+            
             self.update_elo_ratings()
-            print(f"\nIntermediate ELO rankings after prompt: '{prompt}'")
+            print("\nIntermediate ELO rankings after current batch:")
             for model in self.models:
                 print(f"{model.name}: {model.elo:.2f}")
 
@@ -238,13 +247,20 @@ async def main():
         judge_endpoint = default_endpoint
     judge_model = JudgeModel(judge_config["name"], judge_config["model_id"], judge_endpoint)
 
-    # Get prompts from configuration
-    prompts = config["prompts"]
+    # Load dataset from Hugging Face
+    prompts = []
+    for dataset_config in config["datasets"]:
+        ds = load_dataset(dataset_config["name"])
+        split = ds[dataset_config["split"]]
+        prompts.extend(split[dataset_config["field"]][:dataset_config["limit"]])
+
+    print(f"Total number of prompts: {len(prompts)}")
 
     arena = ArenaLearning(models, judge_model)
 
+    batch_size = 3  # Set the batch size to 3
     async with aiohttp.ClientSession() as session:
-        training_data = await arena.run_arena(session, prompts)
+        training_data = await arena.run_arena(session, prompts, batch_size)
 
     print("\nELO rating progression:")
     for model in models:
